@@ -1,10 +1,11 @@
 // ==UserScript==
 // @name         YT Toolkit
 // @namespace    https://github.com/kalmigs/yt-toolkit
-// @version      0.1.0
-// @description  Toolkit for YouTube watch pages. Tool 1: copy the (auto-opened) transcript as chapter-grouped Markdown with timestamp links. More coming — description export, Ask AI.
+// @version      0.2.0
+// @description  Toolkit for YouTube. Tool 1: copy the (auto-opened) transcript as chapter-grouped Markdown with timestamp links — works on watch pages and Shorts. More coming — description export, Ask AI.
 // @author       kal
 // @match        https://www.youtube.com/watch*
+// @match        https://www.youtube.com/shorts/*
 // @grant        GM_setClipboard
 // @run-at       document-idle
 // @noframes
@@ -267,33 +268,72 @@
     }
   }
 
+  // ─── Page-type helpers ───────────────────────────────────────────────────
+  const isWatch = () => location.pathname === '/watch';
+  const isShorts = () => location.pathname.startsWith('/shorts/');
+  const currentV = () => new URLSearchParams(location.search).get('v');
+  const shortsId = () => {
+    const m = location.pathname.match(/^\/shorts\/([^/?#]+)/);
+    return m ? m[1] : null;
+  };
+  // Survives the Short→watch hop (sessionStorage outlives a hard reload too).
+  const AUTORUN_KEY = 'yt-toolkit-autorun';
+
+  // Shorts have no transcript panel to scrape, but the SAME video plays at
+  // /watch?v=<id> with the full UI (transcript button included). So on a Short
+  // we stash the id and bounce to the watch page, where mountButton() picks up
+  // the flag and auto-runs the existing flow.
+  function openShortAsWatch() {
+    const id = shortsId();
+    if (!id) {
+      toast('Could not read this Short’s video id.', false);
+      return;
+    }
+    sessionStorage.setItem(AUTORUN_KEY, id);
+    location.href = `https://www.youtube.com/watch?v=${id}`;
+  }
+
   function mountButton() {
     const existing = document.getElementById('yt-transcript-copy-btn');
-    // Only show on watch pages; remove the button when we navigate away (SPA).
-    if (location.pathname !== '/watch') {
+    // Show on watch pages and Shorts; remove the button elsewhere (SPA nav).
+    if (!isWatch() && !isShorts()) {
       if (existing) existing.remove();
       return;
     }
-    if (existing) return;
-    const btn = document.createElement('button');
-    btn.id = 'yt-transcript-copy-btn';
-    btn.textContent = '📋 Transcript';
-    Object.assign(btn.style, {
-      position: 'fixed',
-      bottom: '20px',
-      right: '20px',
-      zIndex: 99999,
-      padding: '10px 16px',
-      borderRadius: '20px',
-      border: 'none',
-      cursor: 'pointer',
-      font: '600 13px/1 Roboto, system-ui, sans-serif',
-      color: '#fff',
-      background: '#0f0f0f',
-      boxShadow: '0 2px 10px rgba(0,0,0,.4)',
-    });
-    btn.addEventListener('click', () => run(btn));
-    document.body.appendChild(btn);
+    if (!existing) {
+      const btn = document.createElement('button');
+      btn.id = 'yt-transcript-copy-btn';
+      btn.textContent = '📋 Transcript';
+      Object.assign(btn.style, {
+        position: 'fixed',
+        bottom: '20px',
+        right: '20px',
+        zIndex: 99999,
+        padding: '10px 16px',
+        borderRadius: '20px',
+        border: 'none',
+        cursor: 'pointer',
+        font: '600 13px/1 Roboto, system-ui, sans-serif',
+        color: '#fff',
+        background: '#0f0f0f',
+        boxShadow: '0 2px 10px rgba(0,0,0,.4)',
+      });
+      // isShorts() is read at click time, so the same button works on both
+      // page types as you navigate the SPA.
+      btn.addEventListener('click', () => (isShorts() ? openShortAsWatch() : run(btn)));
+      document.body.appendChild(btn);
+    }
+
+    // Arrived at the watch page from a Short → auto-run once the transcript
+    // control has hydrated (a fresh load may still be building the UI).
+    if (isWatch()) {
+      const autoId = sessionStorage.getItem(AUTORUN_KEY);
+      if (autoId && autoId === currentV()) {
+        sessionStorage.removeItem(AUTORUN_KEY);
+        const btn = document.getElementById('yt-transcript-copy-btn');
+        wait(() => findShowTranscriptButton() != null || hasSegments(), 8000).then(() => run(btn));
+      }
+    }
   }
 
   // YouTube is a SPA: navigating home → video fires `yt-navigate-finish` with no
