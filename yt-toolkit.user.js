@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         YT Toolkit
 // @namespace    https://github.com/kalmigs/yt-toolkit
-// @version      0.2.0
+// @version      0.1.0
 // @description  Toolkit for YouTube. Tool 1: copy the (auto-opened) transcript as chapter-grouped Markdown with timestamp links — works on watch pages and Shorts. More coming — description export, Ask AI.
 // @author       kal
 // @match        https://www.youtube.com/watch*
@@ -115,12 +115,32 @@
   }
 
   // ─── Page metadata ───────────────────────────────────────────────────────
+  // The channel lives in the video-owner block on the watch page. Try the
+  // current and legacy selectors and take the first anchor that resolves to a
+  // channel (its text is the name, its href the channel URL).
+  function getChannel() {
+    const a = document.querySelector(
+      'ytd-video-owner-renderer ytd-channel-name a, #owner #channel-name a, ytd-channel-name#channel-name a'
+    );
+    const name = txt(a) || null;
+    const href = a ? a.getAttribute('href') : null;
+    let channelUrl = null;
+    if (href) {
+      try {
+        channelUrl = new URL(href, location.origin).toString();
+      } catch (_) {
+        channelUrl = null;
+      }
+    }
+    return { channel: name, channelUrl };
+  }
+
   function getMeta() {
     const id = new URLSearchParams(location.search).get('v');
     const videoUrl = id ? `https://www.youtube.com/watch?v=${id}` : location.href;
     const h1 = document.querySelector('h1.ytd-watch-metadata, h1 yt-formatted-string');
     const title = (txt(h1) || document.title.replace(/\s*-\s*YouTube\s*$/, '') || 'Transcript').trim();
-    return { videoUrl, title };
+    return { videoUrl, title, ...getChannel() };
   }
 
   // ─── Auto-open the transcript panel ──────────────────────────────────────
@@ -173,26 +193,39 @@
 
   // ─── Build the Markdown ──────────────────────────────────────────────────
   function buildMarkdown() {
-    const { videoUrl, title } = getMeta();
+    const { videoUrl, title, channel, channelUrl } = getMeta();
     const chapters = parseTranscriptDOM();
     const total = chapters.reduce((n, c) => n + c.segments.length, 0);
     if (!total) return null;
 
     const created = new Date().toISOString().slice(0, 10);
     const sections = formatSections(chapters, { videoUrl, chHeading: '##' });
-    const md = [
+    // Same escaping rationale as the title: channel names can carry ':' and
+    // quotes. Omit the field entirely when the channel can't be read rather
+    // than emitting an empty/`null` value.
+    const fm = [
       '---',
-      // JSON.stringify → a double-quoted, escaped YAML flow scalar. Video titles
-      // routinely contain ':' ("Ep 5: The Reveal"), quotes, or leading '-'/'[',
-      // which would otherwise produce frontmatter that YAML parsers choke on.
       `title: ${JSON.stringify(title)}`,
+      ...(channel ? [`channel: ${JSON.stringify(channel)}`] : []),
       `source: ${JSON.stringify(videoUrl)}`,
       `created: ${created}`,
       '---',
+    ];
+    // Attribution line: "Channel · Source video", each linked when we have a URL.
+    const channelLink = channel
+      ? channelUrl
+        ? `[${channel}](${channelUrl})`
+        : channel
+      : null;
+    const attribution = [channelLink, `[Source video](${videoUrl})`]
+      .filter(Boolean)
+      .join(' · ');
+    const md = [
+      ...fm,
       '',
       `# ${title}`,
       '',
-      `> [Source video](${videoUrl})`,
+      `> ${attribution}`,
       '',
       sections.join('\n'),
     ].join('\n');
