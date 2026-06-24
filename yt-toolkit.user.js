@@ -1,9 +1,15 @@
 // ==UserScript==
 // @name         YT Toolkit
 // @namespace    https://github.com/kalmigs/yt-toolkit
-// @version      0.1.0
+// @version      0.2.0
 // @description  Toolkit for YouTube. Tool 1: copy the (auto-opened) transcript as chapter-grouped Markdown with timestamp links — works on watch pages and Shorts. More coming — description export, Ask AI.
 // @author       kal
+// @license      MIT
+// @homepageURL  https://github.com/kalmigs/yt-toolkit
+// @supportURL   https://github.com/kalmigs/yt-toolkit/issues
+// @downloadURL  https://raw.githubusercontent.com/kalmigs/yt-toolkit/main/yt-toolkit.user.js
+// @updateURL    https://raw.githubusercontent.com/kalmigs/yt-toolkit/main/yt-toolkit.user.js
+// @icon         https://www.youtube.com/favicon.ico
 // @match        https://www.youtube.com/watch*
 // @match        https://www.youtube.com/shorts/*
 // @grant        GM_setClipboard
