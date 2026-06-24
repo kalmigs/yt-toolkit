@@ -19,16 +19,18 @@ npm, no dependencies — it's a single standalone `.user.js` file.
 You need a userscript manager — **[Violentmonkey]** or **[Tampermonkey]** (both
 work on Chrome and Firefox). Then:
 
-- **Now:** open `yt-toolkit.user.js`, copy its contents, and create a new script
-  in the manager.
-- **Later (once this is on GitHub):** point the manager at the raw
-  `yt-toolkit.user.js` URL for one-click install **+ auto-update on push**.
+- **One-click (recommended):** open the raw
+  [`yt-toolkit.user.js`](https://raw.githubusercontent.com/kalmigs/yt-toolkit/main/yt-toolkit.user.js)
+  — the manager intercepts it and offers to install, with **auto-update on
+  every push**.
+- **Manual:** copy the contents of `yt-toolkit.user.js` and create a new script
+  in the manager (no auto-update this way).
 
 [Violentmonkey]: https://violentmonkey.github.io/
 [Tampermonkey]: https://www.tampermonkey.net/
 
-> The manager keeps its **own copy** of the script. After editing the file,
-> re-import it into the manager for changes to take effect.
+> The manager keeps its **own copy** of the script. With one-click install it
+> auto-updates; with a manual paste, re-import after editing the file.
 
 ## How it works
 
@@ -40,7 +42,18 @@ paragraphs — it doesn't scrape a saved HTML dump.
 Clipboard write prefers `navigator.clipboard.writeText` (verifiable) and falls
 back to `GM_setClipboard`.
 
+## Privacy
+
+No network calls, no tracking, no external services. The script only reads the
+page you're already on and writes the result to **your clipboard** — nothing
+leaves your browser. `@grant` is limited to `GM_setClipboard` (a clipboard
+fallback); there are no remote requests.
+
 ## Notes
 
 YouTube is a single-page app, so the button re-mounts on in-app navigation
 (`yt-navigate-finish`), not just on hard page loads.
+
+## License
+
+[MIT](LICENSE) © kalmigs
