@@ -19,9 +19,12 @@ npm, no dependencies — it's a single standalone `.user.js` file.
 You need a userscript manager — **[Violentmonkey]** or **[Tampermonkey]** (both
 work on Chrome and Firefox). Then:
 
-- **One-click (recommended):** open the raw
+- **GreasyFork (recommended):** install from the
+  [GreasyFork page](https://greasyfork.org/en/scripts/584307-yt-toolkit) — one
+  click, with **auto-update**.
+- **One-click from source:** open the raw
   [`yt-toolkit.user.js`](https://raw.githubusercontent.com/kalmigs/yt-toolkit/main/yt-toolkit.user.js)
-  — the manager intercepts it and offers to install, with **auto-update on
+  — the manager intercepts it and offers to install, also with **auto-update on
   every push**.
 - **Manual:** copy the contents of `yt-toolkit.user.js` and create a new script
   in the manager (no auto-update this way).
