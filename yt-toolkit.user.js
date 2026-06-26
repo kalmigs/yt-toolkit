@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         YT Toolkit
 // @namespace    https://github.com/kalmigs/yt-toolkit
-// @version      0.2.0
+// @version      0.2.1
 // @description  Toolkit for YouTube. Tool 1: copy the (auto-opened) transcript as chapter-grouped Markdown with timestamp links — works on watch pages and Shorts. More coming — description export, Ask AI.
 // @author       kal
 // @license      MIT
@@ -10,8 +10,7 @@
 // @downloadURL  https://raw.githubusercontent.com/kalmigs/yt-toolkit/main/yt-toolkit.user.js
 // @updateURL    https://raw.githubusercontent.com/kalmigs/yt-toolkit/main/yt-toolkit.user.js
 // @icon         https://www.youtube.com/favicon.ico
-// @match        https://www.youtube.com/watch*
-// @match        https://www.youtube.com/shorts/*
+// @match        https://www.youtube.com/*
 // @grant        GM_setClipboard
 // @run-at       document-idle
 // @noframes
@@ -332,6 +331,43 @@
     location.href = `https://www.youtube.com/watch?v=${id}`;
   }
 
+  // Detect YouTube's *own* theme — NOT the OS preference (the page can be light
+  // while the OS is dark). YouTube flips a `dark` attribute on <html>; if that's
+  // ever absent, fall back to the page's actual background luminance. Used to
+  // invert the pill so it stays high contrast (a black pill vanished on dark).
+  function isDark() {
+    if (document.documentElement.hasAttribute('dark')) return true;
+    for (const el of [document.body, document.documentElement]) {
+      const bg = el && getComputedStyle(el).backgroundColor;
+      const m = bg && bg.match(/[\d.]+/g);
+      // Skip transparent backgrounds (alpha 0); use the first painted one.
+      if (m && m.length >= 3 && (m[3] === undefined || Number(m[3]) > 0)) {
+        const [r, g, b] = m.map(Number);
+        return 0.299 * r + 0.587 * g + 0.114 * b < 128;
+      }
+    }
+    return false;
+  }
+
+  // The player overlays the page in fullscreen/theater-fullscreen, so a fixed
+  // pill would float over the video. Covers native fullscreen and YouTube's own
+  // fullscreen flag (which also fires on Shorts/HTML5 fullscreen).
+  const isFullscreen = () =>
+    document.fullscreenElement != null ||
+    document.querySelector('ytd-app[fullscreen], .ytp-fullscreen') != null;
+
+  // Repaint theme colors + show/hide for fullscreen on the existing button.
+  function updateButtonChrome() {
+    const btn = document.getElementById('yt-transcript-copy-btn');
+    if (!btn) return;
+    const dark = isDark();
+    Object.assign(btn.style, {
+      color: dark ? '#0f0f0f' : '#fff',
+      background: dark ? '#f1f1f1' : '#0f0f0f',
+      display: isFullscreen() ? 'none' : '',
+    });
+  }
+
   function mountButton() {
     const existing = document.getElementById('yt-transcript-copy-btn');
     // Show on watch pages and Shorts; remove the button elsewhere (SPA nav).
@@ -353,8 +389,6 @@
         border: 'none',
         cursor: 'pointer',
         font: '600 13px/1 Roboto, system-ui, sans-serif',
-        color: '#fff',
-        background: '#0f0f0f',
         boxShadow: '0 2px 10px rgba(0,0,0,.4)',
       });
       // isShorts() is read at click time, so the same button works on both
@@ -362,6 +396,7 @@
       btn.addEventListener('click', () => (isShorts() ? openShortAsWatch() : run(btn)));
       document.body.appendChild(btn);
     }
+    updateButtonChrome(); // theme colors + fullscreen visibility
 
     // Arrived at the watch page from a Short → auto-run once the transcript
     // control has hydrated (a fresh load may still be building the UI).
@@ -382,5 +417,15 @@
   // /watch pages, so firing it on each navigation (and possible re-injection) is
   // safe.
   window.addEventListener('yt-navigate-finish', mountButton);
+
+  // Fullscreen and theme can toggle without any navigation, so update the
+  // button chrome directly on those events too.
+  document.addEventListener('fullscreenchange', updateButtonChrome);
+  // YouTube flips the `dark` attribute on <html> when you change the theme.
+  new MutationObserver(updateButtonChrome).observe(document.documentElement, {
+    attributes: true,
+    attributeFilter: ['dark'],
+  });
+
   mountButton();
 })();
