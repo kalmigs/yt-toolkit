@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         YT Toolkit
 // @namespace    https://github.com/kalmigs/yt-toolkit
-// @version      0.3.0
+// @version      0.3.1
 // @description  Toolkit for YouTube. Copy composer: pick sources (Transcript, ✦ Ask answers) and copy them as one chapter-grouped Markdown doc with timestamp links. Works on watch pages and Shorts. More coming: description export.
 // @author       kal
 // @license      MIT
