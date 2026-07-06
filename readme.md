@@ -3,16 +3,30 @@
 A userscript that adds small tools to YouTube watch pages. No build step, no
 npm, no dependencies — it's a single standalone `.user.js` file.
 
+<p align="center">
+  <img src="assets/demo.gif" alt="YT Toolkit — the 📋 Copy composer picking Transcript and ✦ Ask, then copying Markdown">
+</p>
+
 ## Tools
 
-- **Transcript → Markdown** — a floating **📋 Transcript** button auto-opens the
-  transcript panel, reads it, and copies chapter-grouped prose with clickable
-  timestamp links to your clipboard. Paste it anywhere (notes, docs, an LLM).
+A floating **📋 Copy** button on watch pages (and Shorts) opens a small **source
+picker** — check what you want, hit **Copy**, and it lands on your clipboard as
+one Markdown document (shared frontmatter + a section per source):
+
+- **Transcript** — auto-opens the transcript panel and copies chapter-grouped
+  prose with clickable timestamp links.
+- **✦ Ask** — copies YouTube's own ✦ Ask (Gemini) answers as `**Q:**`/`**A:**`
+  pairs, keeping the AI's cited timestamps as links. Opportunistic: if you
+  haven't asked anything, it's skipped rather than blocking the transcript.
+
+On **Shorts** (which have no transcript panel) the button hops to the same
+video's watch page and copies from there.
 
 ### Planned
 
-- **Description → Markdown** — export the video description + links.
-- **Ask AI** — send the transcript/description to an LLM and ask about the video.
+- **Description → Markdown** — another checkbox in the composer.
+- **Ask AI (external)** — send the transcript to an LLM *we* call and ask about
+  the video.
 
 ## Install
 
@@ -40,7 +54,8 @@ work on Chrome and Firefox). Then:
 Browsers can't write local files, so each tool **copies to the clipboard**
 rather than saving. The transcript reader walks YouTube's live DOM (handling
 both the "classic" and "viewmodel" transcript layouts) and groups segments into
-paragraphs — it doesn't scrape a saved HTML dump.
+paragraphs — it doesn't scrape a saved HTML dump. The ✦ Ask reader converts the
+answer HTML already rendered in YouTube's Ask panel back into Markdown.
 
 Clipboard write prefers `navigator.clipboard.writeText` (verifiable) and falls
 back to `GM_setClipboard`.
