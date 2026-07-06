@@ -2,7 +2,7 @@
 // @name         YT Toolkit
 // @namespace    https://github.com/kalmigs/yt-toolkit
 // @version      0.3.0
-// @description  Toolkit for YouTube. Copy composer: pick sources (Transcript, ✦ Ask answers) and copy them as one chapter-grouped Markdown doc with timestamp links — works on watch pages and Shorts. More coming — description export.
+// @description  Toolkit for YouTube. Copy composer: pick sources (Transcript, ✦ Ask answers) and copy them as one chapter-grouped Markdown doc with timestamp links. Works on watch pages and Shorts. More coming: description export.
 // @author       kal
 // @license      MIT
 // @homepageURL  https://github.com/kalmigs/yt-toolkit
@@ -17,7 +17,7 @@
 // ==/UserScript==
 //
 // A userscript is a single standalone file (the manager can't require() modules),
-// so everything is inlined here — the pure formatting helpers (tsToSeconds, tsLink,
+// so everything is inlined here: the pure formatting helpers (tsToSeconds, tsLink,
 // formatSections, FLUSH_EVERY), the live-DOM readers (transcript + ✦ Ask panel),
 // and the page glue (the copy-composer popover). No build step, no dependencies.
 
@@ -111,7 +111,7 @@
     // Scope the read to a single transcript panel. YouTube sometimes mounts the
     // same transcript in two engagement panels at once (e.g. the transcript
     // panel + the "search in video" preview), so a document-wide query would
-    // read — and emit — every segment twice.
+    // read and emit every segment twice.
     const first = document.querySelector(SEG_SEL);
     const scope =
       (first && first.closest('ytd-engagement-panel-section-list-renderer')) || document;
@@ -362,7 +362,7 @@
   // ─── Section builders (one Markdown body per source) ─────────────────────
   // The transcript's chapters render as sub-headings under a "## Transcript"
   // section wrapper, so pass chHeading='###'. A video with no chapters yields a
-  // single pseudo-chapter titled "Transcript" — drop its redundant sub-heading.
+  // single pseudo-chapter titled "Transcript"; drop its redundant sub-heading.
   function readTranscriptSection(videoUrl) {
     const chapters = parseTranscriptDOM();
     const total = chapters.reduce((n, c) => n + c.segments.length, 0);
@@ -401,7 +401,7 @@
   // ─── Sources (the composer's checkboxes) ─────────────────────────────────
   // Each source knows how to detect its own availability (sync, for the
   // checkbox state) and how to read its Markdown body (async). Adding a source
-  // later — Description, Chapters — is just another entry here.
+  // later (Description, Chapters) is just another entry here.
   const SOURCES = [
     {
       id: 'transcript',
@@ -446,7 +446,7 @@
 
   // Read each chosen source and stitch the non-empty ones into one doc under
   // shared frontmatter. Sources that yield nothing (e.g. Ask checked but never
-  // used) are skipped, never fatal — so a present transcript still copies.
+  // used) are skipped, never fatal, so a present transcript still copies.
   async function buildDoc(sources) {
     const meta = getMeta();
     const sections = [];
@@ -500,7 +500,7 @@
       // blocks navigator.clipboard).
     }
     if (typeof GM_setClipboard === 'function') {
-      // Plain string type — NOT { type, mimetype }. The object form is
+      // Plain string type, NOT { type, mimetype }. The object form is
       // Tampermonkey-only; Violentmonkey silently no-ops on it (which is what
       // produced a green toast with an empty clipboard).
       GM_setClipboard(text, 'text');
@@ -551,7 +551,7 @@
   }
 
   // ─── Theme + fullscreen chrome ───────────────────────────────────────────
-  // Detect YouTube's *own* theme — NOT the OS preference (the page can be light
+  // Detect YouTube's *own* theme, NOT the OS preference (the page can be light
   // while the OS is dark). YouTube flips a `dark` attribute on <html>; if that's
   // ever absent, fall back to the page's actual background luminance. Used to
   // invert the widget so it stays high contrast (a black pill vanished on dark).
@@ -749,7 +749,7 @@
     try {
       const { md, skipped, count } = await buildDoc(chosen);
       if (!md) {
-        toast('Nothing to copy — the selected source(s) were empty.', false);
+        toast('Nothing to copy; the selected source(s) were empty.', false);
         return;
       }
       await copy(md);
