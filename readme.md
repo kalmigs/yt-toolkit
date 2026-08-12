@@ -13,6 +13,9 @@ A floating **📋 Copy** button on watch pages (and Shorts) opens a small **sour
 picker**. Check what you want, hit **Copy**, and it lands on your clipboard as
 one Markdown document (shared frontmatter + a section per source):
 
+- **Description**: expands the description and copies it, turning chapter
+  timestamps into clickable links and unwrapping YouTube's `/redirect` links to
+  point straight at the real destination.
 - **Transcript**: auto-opens the transcript panel and copies chapter-grouped
   prose with clickable timestamp links.
 - **✦ Ask**: copies YouTube's own ✦ Ask (Gemini) answers as `**Q:**`/`**A:**`
@@ -24,7 +27,6 @@ video's watch page and copies from there.
 
 ### Planned
 
-- **Description → Markdown**: another checkbox in the composer.
 - **Ask AI (external)**: send the transcript to an LLM *we* call and ask about
   the video.
 
@@ -55,7 +57,10 @@ Browsers can't write local files, so each tool **copies to the clipboard**
 rather than saving. The transcript reader walks YouTube's live DOM (handling
 both the "classic" and "viewmodel" transcript layouts) and groups segments into
 paragraphs; it doesn't scrape a saved HTML dump. The ✦ Ask reader converts the
-answer HTML already rendered in YouTube's Ask panel back into Markdown.
+answer HTML already rendered in YouTube's Ask panel back into Markdown. The
+description reader expands the description first, since YouTube only fills in
+the full text once it's open, and reads just that block so the panels YouTube
+slots alongside it (the Show-transcript button, the social links) stay out.
 
 Clipboard write prefers `navigator.clipboard.writeText` (verifiable) and falls
 back to `GM_setClipboard`.
