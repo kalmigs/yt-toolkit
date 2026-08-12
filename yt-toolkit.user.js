@@ -359,6 +359,123 @@
     return hasSegments();
   }
 
+  // ─── Description reader ──────────────────────────────────────────────────
+  // The description lives in ytd-text-inline-expander#description-inline-expander.
+  // While collapsed, #expanded holds an EMPTY yt-attributed-string and only the
+  // truncated #snippet carries text, so the full description has to be expanded
+  // before it can be read. The extras YouTube slots into the expander (the
+  // Show-transcript button, subscriber count, social chips) live in a sibling
+  // div[slot="extra-content"], so scoping the read to #expanded excludes them.
+  const DESC_SEL = 'ytd-text-inline-expander#description-inline-expander';
+  const descExpander = () => document.querySelector(DESC_SEL);
+
+  function descBody() {
+    const exp = descExpander();
+    return exp ? exp.querySelector('#expanded yt-attributed-string') : null;
+  }
+
+  const hasDescriptionText = () => {
+    const body = descBody();
+    return body != null && body.textContent.trim() !== '';
+  };
+
+  // Sync availability check for the composer. Collapsed, the real body is empty,
+  // so fall back to the snippet: a video with no description has neither.
+  function hasDescription() {
+    const exp = descExpander();
+    if (!exp) return false;
+    if (hasDescriptionText()) return true;
+    const snippet = exp.querySelector('#attributed-snippet-text');
+    return snippet != null && snippet.textContent.trim() !== '';
+  }
+
+  async function ensureDescriptionExpanded() {
+    if (hasDescriptionText()) return true;
+    const exp = descExpander();
+    if (!exp) return false;
+    const btn = exp.querySelector('#expand') || exp.querySelector('#expand-sizer');
+    if (btn) {
+      btn.click();
+      await wait(hasDescriptionText, 3000);
+    }
+    return hasDescriptionText();
+  }
+
+  // The t param arrives as "90s", "90", or "1h2m30s".
+  function parseTParam(t) {
+    if (!t) return null;
+    if (/^\d+s?$/.test(t)) return Number(t.replace(/s$/, ''));
+    const m = t.match(/^(?:(\d+)h)?(?:(\d+)m)?(?:(\d+)s)?$/);
+    if (!m || (!m[1] && !m[2] && !m[3])) return null;
+    return Number(m[1] || 0) * 3600 + Number(m[2] || 0) * 60 + Number(m[3] || 0);
+  }
+
+  // YouTube elides long link text ("example.com/some-lo…"); an ellipsis-ending
+  // or empty label is useless in a notes file, so show the full URL instead.
+  const linkLabel = (label, url) => (!label || /[…]$/.test(label) ? url : label);
+
+  // Convert the rendered description into Markdown. Unlike the Ask panel this is
+  // a white-space: pre-wrap block, so text nodes carry real newlines and must NOT
+  // be collapsed. Anchors are classified by href shape rather than by class name,
+  // which YouTube churns far more often.
+  function descriptionToMarkdown(root, videoUrl) {
+    function serializeAnchor(a) {
+      const label = a.textContent.replace(/\s+/g, ' ').trim();
+      const href = a.getAttribute('href');
+      if (!href) return label;
+      let url;
+      try {
+        url = new URL(href, 'https://www.youtube.com');
+      } catch {
+        return label;
+      }
+      // Outbound links are wrapped in /redirect?q=<encoded>; unwrap so the
+      // Markdown points at the real destination, not a tracking hop.
+      if (url.pathname === '/redirect') {
+        const q = url.searchParams.get('q');
+        if (q) return `[${linkLabel(label, q)}](${q})`;
+      }
+      // Hashtag chips are navigation, not content; keep the plain "#tag" text.
+      if (url.pathname.startsWith('/hashtag/')) return label;
+      // Chapter timestamps become the same clickable links the transcript and
+      // Ask sections emit.
+      if (url.pathname === '/watch') {
+        const secs = parseTParam(url.searchParams.get('t'));
+        if (secs !== null) return tsLinkFromSeconds(label, secs, videoUrl);
+      }
+      const abs = url.toString();
+      return `[${linkLabel(label, abs)}](${abs})`;
+    }
+
+    function serialize(n) {
+      if (n.nodeType === 3) return n.textContent; // pre-wrap: newlines are real
+      if (n.nodeType !== 1) return '';
+      const tag = n.tagName.toLowerCase();
+      if (tag === 'br') return '\n';
+      if (tag === 'a') return serializeAnchor(n);
+      let out = '';
+      for (const c of n.childNodes) out += serialize(c);
+      return out;
+    }
+
+    return serialize(root);
+  }
+
+  // Descriptions are list-shaped (chapter lists, credits, socials), so a single
+  // newline is meaningful. Markdown would fold those into one paragraph, so end
+  // every line that is followed by more text with a hard break.
+  function toMarkdownLineBreaks(text) {
+    const lines = text
+      .replace(/\r\n?/g, '\n')
+      .split('\n')
+      .map((l) => l.replace(/[ \t]+$/, ''));
+    return lines
+      .map((l, i) => (l && lines[i + 1] ? `${l}  ` : l))
+      .join('\n')
+      .replace(/\n{3,}/g, '\n\n')
+      .trim();
+  }
+
   // ─── Section builders (one Markdown body per source) ─────────────────────
   // The transcript's chapters render as sub-headings under a "## Transcript"
   // section wrapper, so pass chHeading='###'. A video with no chapters yields a
@@ -374,6 +491,12 @@
       return lines.join('\n').trim();
     }
     return body;
+  }
+
+  function readDescriptionSection(videoUrl) {
+    const body = descBody();
+    if (!body) return null;
+    return toMarkdownLineBreaks(descriptionToMarkdown(body, videoUrl)) || null;
   }
 
   function readAskSection(videoUrl) {
@@ -403,6 +526,17 @@
   // checkbox state) and how to read its Markdown body (async). Adding a source
   // later (Description, Chapters) is just another entry here.
   const SOURCES = [
+    {
+      id: 'description',
+      label: 'Description',
+      heading: 'Description',
+      hint: 'No description on this video',
+      isAvailable: () => isWatch() && hasDescription(),
+      read: async (meta) => {
+        await ensureDescriptionExpanded();
+        return readDescriptionSection(meta.videoUrl);
+      },
+    },
     {
       id: 'transcript',
       label: 'Transcript',
